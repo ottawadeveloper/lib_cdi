@@ -1,0 +1,15 @@
+name = Common Data Interface
+description = "This is an API module that provides a common set of methods and
+hooks for working with any type of data in a generic fashion."
+core = 7.x
+package = CDI
+
+files[] = classes/exceptions/CDIException.php
+files[] = classes/controllers/CDIControllerInterface.php
+files[] = classes/interface/CDIIdentifierInterface.php
+files[] = classes/registry/CDIRegistryStorageInterface.php
+files[] = classes/registry/CDIVariableStorageRegistry.php
+files[] = classes/registry/CDIRegistry.php
+files[] = classes/interface/CDIIdentifier.php
+files[] = classes/interface/CDIObject.php
+files[] = classes/controllers/CDIBaseController.php

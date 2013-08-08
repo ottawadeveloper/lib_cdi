@@ -1,0 +1,6 @@
+name = CDI - Core Configuration
+description = "Provides integration with the core configuration types."
+package = CDI
+core = 7.x
+
+dependencies = cdi
