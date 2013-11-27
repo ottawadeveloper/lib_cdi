@@ -1,5 +1,0 @@
-<?php
-
-function cdi_core_config_cdi_register(CDIRegistryInterface $registry) {
-  
-}

@@ -1,0 +1,103 @@
+<?php
+/**
+ * @file
+ * Contains hook implementations.
+ */
+
+function lib_cdi_menu() {
+  return array(
+    'test-page' => array(
+      'page callback' => '_lib_cdi_test',
+      'access callback' => TRUE,
+    ),
+  );
+}
+
+function _lib_cdi_test() {
+  $datatype = CDI::getDataTypeRegistry()->loadDataType(CDI_DATA_TYPE_ENTITY);
+  $node1 = $datatype->facade('load')->load(1, 'node');
+  return $node1->facade('id')->id();
+}
+
+/**
+ * Implements hook_libraries_info().
+ */
+function lib_cdi_libraries_info() {
+  return array(
+    'cdi' => array(
+      'name' => t('CDI'),
+      'vendor url' => 'tbd',
+      'download url' => 'tbd',
+      'version arguments' => array(
+        'file' => 'cdi.php',
+        'pattern' => '`VERSION (\d{1,}\.\d{1,})`i',
+      ),
+      'files' => array(
+        'php' => array(
+          'cdi.php',
+        ),
+      ),
+    ),
+  );
+}
+
+/**
+ * Implements hook_init().
+ */
+function lib_cdi_init() {
+  $lib = libraries_load('cdi');
+  if (empty($lib['loaded'])) {
+    drupal_set_message(t('CDI could not be detected.'), 'warning');
+    return;
+  }
+  // Allow overriding of the registry classes using variable_get().
+  // These can be either text strings for classes with an empty constructor
+  // or instances of objects.
+  CDI::setCommandRegistryClass(variable_get('lib_cdi_command_registry_class', 'CDIRegistry'));
+  CDI::setDataTypeRegistryClass(variable_get('lib_cdi_data_type_registry_class', 'CDIRegistry'));
+  CDI::setRegistryClass(variable_get('lib_cdi_registry_class', 'CDIRegistry'));
+  // Register default modules
+  $cdi_modules = lib_cdi_get_module_list();
+  foreach ($cdi_modules as $module_key => $module_def) {
+    if ($module_def instanceof CDICommandDefinitionInterface) {
+      CDI::addDefaultCommandModule($module_key, $module_def);
+    }
+    else {
+      watchdog('lib_cdi', 'Unable to add default command module to CDI, invalid class for !module_key', array(
+        '!module_key' => $module_key,
+      ));
+    }
+  }
+  $enabled_modules = lib_cdi_get_enabled_module_list();
+  foreach ($enabled_modules as $module_key) {
+    CDI::registerDefaultModule($module_key);
+  }
+  $data_types = lib_cdi_get_data_type_info();
+  foreach ($data_types as $type) {
+    CDI::getDataTypeRegistry()->registerDataType($type);
+  }
+  $receivers = lib_cdi_get_receivers_info();
+  foreach ($receivers as $receiver_data) {
+    CDI::getRegistry()->registerReceiver($receiver_data['receiver'], $receiver_data['weight']);
+  }
+}
+
+function lib_cdi_get_module_list() {
+  module_load_include('inc', 'lib_cdi');
+  return _lib_cdi_cached_module_list(TRUE);
+}
+
+function lib_cdi_get_enabled_module_list() {
+  module_load_include('inc', 'lib_cdi');
+  return _lib_cdi_cached_enabled_module_list(TRUE);
+}
+
+function lib_cdi_get_data_type_info() {
+  module_load_include('inc', 'lib_cdi');
+  return _lib_cdi_cached_data_type_info(TRUE);
+}
+
+function lib_cdi_get_receivers_info() {
+  module_load_include('inc', 'lib_cdi');
+  return _lib_cdi_cached_receiver_info(TRUE);
+}

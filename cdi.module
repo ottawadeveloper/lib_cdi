@@ -1,7 +1,0 @@
-<?php
-
-function _cdi_rebuild_registry_info() {
-  $registry = new CDIRegistry();
-  $registry->unregisterAllControllers();
-  module_invoke_all('cdi_register', $registry);
-}

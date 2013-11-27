@@ -1,0 +1,9 @@
+name = CDI - Entities
+package = CDI
+core = 7.x
+description = "Provides integration with CDI for Drupal entities"
+
+dependencies[] = entity
+dependencies[] = lib_cdi
+
+files[] = classes/CDIEntityReceiver.class
