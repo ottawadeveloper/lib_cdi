@@ -1,0 +1,43 @@
+<?php
+
+class CDIEntityReceiver extends CDIAbstractTypedReceiver
+  implements CDIIDInterface,
+        CDILoadInterface,
+        CDISaveInterface {
+  
+  private $entity_type;
+  private $bundle = NULL;
+  
+  public function __construct($entity_type, $bundle = NULL) {
+    $this->entity_type = $entity_type;
+    $this->bundle = $bundle;
+    $key = CDI_DATA_TYPE_ENTITY . ':' . $entity_type;
+    if (!empty($bundle)) {
+      $key .= ':' . $bundle;
+    }
+    parent::__construct($key);
+  }
+  
+  public function save(CDIDataObjectInterface $object) {
+    return entity_save(
+        $this->entity_type,
+        $object->getRawValue('object')
+    );
+  }
+  
+  public function load($id) {
+    $object = new CDIDataObject(new CDIEntityDataType($this->entity_type, $this->bundle));
+    $entities = entity_load($this->entity_type, array($id));
+    $object->setRawValue('object', reset($entities));
+    return $object;
+  }
+  
+  public function id(CDIDataObjectInterface $object) {
+    list($id,,) = entity_extract_ids(
+        $this->entity_type,
+        $object->getRawValue('object')
+    );
+    return $id;
+  }
+  
+}

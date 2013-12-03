@@ -1,0 +1,53 @@
+<?php
+
+define('CDI_DATA_TYPE_ENTITY', 'entity');
+
+function cdi_entity_cdi_data_types() {
+  $data_types = array();
+  $info = entity_get_info();
+  foreach ($info as $entity_type => $entity_info) {
+    $base_key = 'entity:' . $entity_type;
+    if (empty($entity_info['kentity keys']['bundle'])) {
+      $data_types[$base_key] = new CDIEntityDataType($entity_type);
+    }
+    else {
+      foreach ($entity_info['bundles'] as $bundle_key => $bundle_info) {
+        $data_types[$base_key . ':' . $bundle_key] = new CDIEntityDataType($entity_type, $bundle_key);
+      }
+    }
+  }
+  return $data_types;
+}
+
+function cdi_entity_cdi_receivers() {
+  $data_types = array();
+  $info = entity_get_info();
+  foreach ($info as $entity_type => $entity_info) {
+    $base_key = CDI_DATA_TYPE_ENTITY . ':' . $entity_type;
+    $data_types[$base_key] = array(
+      'receiver' => new CDIEntityReceiver($entity_type),
+      'weight' => 0,
+    );
+    if (!empty($entity_info['entity keys']['bundle'])) {
+      foreach ($entity_info['bundles'] as $bundle_key => $bundle_info) {
+        $data_types[$base_key . ':' . $bundle_key] = array(
+          'receiver' => new CDIEntityReceiver($entity_type, $bundle_key),
+          'weight' => 0,
+        );
+      }
+    }
+  }
+  return $data_types;
+}
+
+function cdi_entity_cdi_enabled_modules() {
+  return array(
+    CDI_MODULE_LOAD,
+    CDI_MODULE_ID,
+    CDI_MODULE_SAVE,
+  );
+}
+
+function cdi_entity_data_type($entity_type, $bundle = NULL) {
+  return new CDIEntityDataType($entity_type, $bundle);
+}

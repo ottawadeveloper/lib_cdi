@@ -7,3 +7,4 @@ dependencies[] = entity
 dependencies[] = lib_cdi
 
 files[] = classes/CDIEntityReceiver.class
+files[] = classes/CDIEntityDataType.class

@@ -20,9 +20,8 @@ function _lib_cdi_build_receiver_info() {
     $hook = $module . '_cdi_receivers';
     if (function_exists($hook)) {
       $temp = $hook();
-      foreach ($temp as $receiver_info) {
-        $class = get_class($receiver_info['receiver']);
-        $delegates[$class] = $receiver_info + array(
+      foreach ($temp as $key => $receiver_info) {
+        $delegates[$key] = $receiver_info + array(
           'weight' => 0,
         );
       }

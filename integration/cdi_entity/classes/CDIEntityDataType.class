@@ -1,0 +1,26 @@
+<?php
+
+class CDIEntityDataType extends CDIDataType {
+  
+  private $entity_type;
+  private $bundle;
+  
+  public function __construct($entity_type, $bundle = NULL) {
+    $key = CDI_DATA_TYPE_ENTITY . ':' . $entity_type;
+    if (!empty($bundle)) {
+      $key .= ':' . $bundle;
+    }
+    parent::__construct($key);
+    $this->entity_type = $entity_type;
+    $this->bundle = $bundle;
+  }
+  
+  public function getEntityType() {
+    return $this->entity_type;
+  }
+  
+  public function getBundle() {
+    return $this->bundle;
+  }
+  
+}

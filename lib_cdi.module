@@ -14,9 +14,9 @@ function lib_cdi_menu() {
 }
 
 function _lib_cdi_test() {
-  $datatype = CDI::getDataTypeRegistry()->loadDataType(CDI_DATA_TYPE_ENTITY);
-  $node1 = $datatype->facade('load')->load(1, 'node');
-  return $node1->facade('id')->id();
+  $dt = cdi_entity_data_type('node');
+  $node = $dt->facade('load')->load(1);
+  return $node->facade('id')->id();
 }
 
 /**
@@ -53,14 +53,14 @@ function lib_cdi_init() {
   // Allow overriding of the registry classes using variable_get().
   // These can be either text strings for classes with an empty constructor
   // or instances of objects.
-  CDI::setCommandRegistryClass(variable_get('lib_cdi_command_registry_class', 'CDIRegistry'));
+  CDI::setCommandModuleRegistryClass(variable_get('lib_cdi_command_registry_class', 'CDIRegistry'));
   CDI::setDataTypeRegistryClass(variable_get('lib_cdi_data_type_registry_class', 'CDIRegistry'));
   CDI::setRegistryClass(variable_get('lib_cdi_registry_class', 'CDIRegistry'));
   // Register default modules
   $cdi_modules = lib_cdi_get_module_list();
   foreach ($cdi_modules as $module_key => $module_def) {
-    if ($module_def instanceof CDICommandDefinitionInterface) {
-      CDI::addDefaultCommandModule($module_key, $module_def);
+    if ($module_def instanceof CDICommandModuleDefinitionInterface) {
+      CDI::addCommandModule($module_key, $module_def);
     }
     else {
       watchdog('lib_cdi', 'Unable to add default command module to CDI, invalid class for !module_key', array(
@@ -70,7 +70,7 @@ function lib_cdi_init() {
   }
   $enabled_modules = lib_cdi_get_enabled_module_list();
   foreach ($enabled_modules as $module_key) {
-    CDI::registerDefaultModule($module_key);
+    CDI::registerModule($module_key);
   }
   $data_types = lib_cdi_get_data_type_info();
   foreach ($data_types as $type) {
