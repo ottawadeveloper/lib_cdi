@@ -3,9 +3,19 @@
 class CDIEntityReceiver extends CDIAbstractTypedReceiver
   implements CDIIDInterface,
         CDILoadInterface,
-        CDISaveInterface {
+        CDISaveInterface,
+        CDIDeleteInterface,
+        CDIDisplayInterface,
+        CDIImportInterface,
+        CDIExportInterface,
+        CDIStubInterface {
+  
+  private static $supportedDisplayModes = array(
+    CDI_DISPLAY_HTML,
+  );
   
   private $entity_type;
+  private $bundle_key = NULL;
   private $bundle = NULL;
   
   public function __construct($entity_type, $bundle = NULL) {
@@ -18,6 +28,94 @@ class CDIEntityReceiver extends CDIAbstractTypedReceiver
     parent::__construct($key);
   }
   
+  private function getBundleKey() {
+    if ($this->bundle_key === NULL) {
+      $info = entity_get_info($this->entity_type);
+      if (isset($info['entity keys']['bundle'])) {
+        $this->bundle_key = $info['entity keys']['bundle'];
+      }
+      else {
+        $this->bundle_key = FALSE;
+      }
+    }
+    return $this->bundle_key;
+  }
+  
+  public function validateDataType(CDIDataTypeInterface $dataType, $commandClass) {
+    // This call is necessary for some command types, since not all entities
+    // might have support for every command type.
+    $return = FALSE;
+    $requireBundle = FALSE;
+    switch ($commandClass) {
+      case 'CDILoadCommand':
+      case 'CDIIDCommand':
+        $return = TRUE;
+      case 'CDISaveCommand':
+        $return = $this->checkSupportCallback('entity', 'entity_type_supports', 'save');
+      case 'CDIDeleteCommand':
+        $return = $this->checkSupportCallback('entity', 'entity_type_supports', 'delete');
+      case 'CDIDisplayCommand':
+        $return = $this->checkSupportCallback('entity', 'entity_type_supports', 'view');
+      case 'CDIStubCommand':
+        $return = $this->checkSupportCallback('entity', 'entity_type_supports', 'create');
+        $requireBundle = TRUE;
+      case 'CDIExportCommand':
+      case 'CDIImportCommand':
+       $return = $this->checkSupportCallback('xentity', 'xentity_type_supports', 'exim');
+    }
+    if ($return && $requireBundle) {
+      $key = $this->getBundleKey();
+      if (!empty($key)) {
+        $return = !empty($this->bundle);
+      }
+    }
+    return $return;
+  }
+  
+  private function checkSupportCallback($module, $function, $op = NULL) {
+    if (!module_exists($module)) {
+      return FALSE;
+    }
+    if (!is_callable($function)) {
+      return FALSE;
+    }
+    return $function($this->entity_type, $op);
+  }
+  
+  public function import($export_data) {
+    return xentity_import($this->entity_type, $export_data);
+  }
+  
+  public function export(CDIDataObject $dataObject) {
+    return xentity_export($this->entity_type, $dataObject->getRawValue('object'));
+  }
+  
+  public function stub($initialValues = array()) {
+    $bkey = $this->getBundleKey();
+    if (!empty($bkey)) {
+      $initialValues[$bkey] = $this->bundle;
+    }
+    $object = entity_create($this->entity_type, $initialValues);
+    $cdi = new CDIDataObject(cdi_entity_data_type($this->entity_type, $this->bundle));
+    $cdi->setRawValue('object', $object);
+    return $cdi;
+  }
+  
+  public function supportsDisplayMode($mode) {
+    return in_array($mode, self::$supportedDisplayModes);
+  }
+  
+  public function display(CDIDataObjectInterface $object, $mode) {
+    switch ($mode) {
+      case CDI_DISPLAY_HTML:
+        $entity = $object->getRawValue('object');
+        $render = entity_view($this->entity_type, array($entity));
+        return drupal_render($render);
+        break;
+    }
+    return '';
+  }
+  
   public function save(CDIDataObjectInterface $object) {
     return entity_save(
         $this->entity_type,
@@ -25,8 +123,14 @@ class CDIEntityReceiver extends CDIAbstractTypedReceiver
     );
   }
   
+  public function delete(CDIDataObjectInterface $object) {
+    return entity_delete(
+        $this->entity_type,
+        $this->id($object));
+  }
+  
   public function load($id) {
-    $object = new CDIDataObject(new CDIEntityDataType($this->entity_type, $this->bundle));
+    $object = new CDIDataObject(cdi_entity_data_type($this->entity_type, $this->bundle));
     $entities = entity_load($this->entity_type, array($id));
     $object->setRawValue('object', reset($entities));
     return $object;

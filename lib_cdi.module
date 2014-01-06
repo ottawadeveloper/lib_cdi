@@ -15,8 +15,8 @@ function lib_cdi_menu() {
 
 function _lib_cdi_test() {
   $dt = cdi_entity_data_type('node');
-  $node = $dt->facade('load')->load(1);
-  return $node->facade('id')->id();
+  $node = $dt->load(1);
+  return $node->id();
 }
 
 /**
@@ -38,6 +38,13 @@ function lib_cdi_libraries_info() {
         ),
       ),
     ),
+  );
+}
+
+function lib_cdi_cdi_enabled_modules() {
+  return array(
+    'id',
+    'load',
   );
 }
 

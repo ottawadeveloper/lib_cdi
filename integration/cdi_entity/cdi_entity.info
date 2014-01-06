@@ -4,6 +4,7 @@ core = 7.x
 description = "Provides integration with CDI for Drupal entities"
 
 dependencies[] = entity
+dependencies[] = xentity
 dependencies[] = lib_cdi
 
 files[] = classes/CDIEntityReceiver.class
