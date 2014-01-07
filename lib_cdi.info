@@ -3,3 +3,5 @@ description = "This is an API module that provides a common set of methods and
 hooks for working with any type of data in a generic fashion."
 core = 7.x
 package = CDI
+
+files[] = classes/GenericEntityReceiver.class

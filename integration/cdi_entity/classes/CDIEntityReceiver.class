@@ -1,95 +1,107 @@
 <?php
 
-class CDIEntityReceiver extends CDIAbstractTypedReceiver
+class CDIEntityReceiver extends GenericEntityRecevier
   implements CDIIDInterface,
         CDILoadInterface,
         CDISaveInterface,
         CDIDeleteInterface,
         CDIDisplayInterface,
-        CDIImportInterface,
-        CDIExportInterface,
-        CDIStubInterface {
+        CDIStubInterface,
+        CDILabelInterface,
+        CDIListInterface, 
+        CDISimpleListInterface,
+        CDICanonUrlInterface {
   
-  private static $supportedDisplayModes = array(
-    CDI_DISPLAY_HTML,
+  private static $supportedDisplayTypes = array(
+    CDI_DISPLAY_TYPE_HTML,
   );
   
-  private $entity_type;
-  private $bundle_key = NULL;
-  private $bundle = NULL;
-  
-  public function __construct($entity_type, $bundle = NULL) {
-    $this->entity_type = $entity_type;
-    $this->bundle = $bundle;
-    $key = CDI_DATA_TYPE_ENTITY . ':' . $entity_type;
-    if (!empty($bundle)) {
-      $key .= ':' . $bundle;
-    }
-    parent::__construct($key);
-  }
-  
-  private function getBundleKey() {
-    if ($this->bundle_key === NULL) {
-      $info = entity_get_info($this->entity_type);
-      if (isset($info['entity keys']['bundle'])) {
-        $this->bundle_key = $info['entity keys']['bundle'];
-      }
-      else {
-        $this->bundle_key = FALSE;
-      }
-    }
-    return $this->bundle_key;
-  }
+  private static $supportedDisplayModes = array(
+    CDI_DISPLAY_MODE_FULL,
+    CDI_DISPLAY_MODE_SUMMARY,
+  );  
   
   public function validateDataType(CDIDataTypeInterface $dataType, $commandClass) {
-    // This call is necessary for some command types, since not all entities
-    // might have support for every command type.
-    $return = FALSE;
-    $requireBundle = FALSE;
+    if (!parent::validateDataType($dataType, $commandClass)) {
+      return FALSE;
+    }
     switch ($commandClass) {
+      // Provided by core.
       case 'CDILoadCommand':
       case 'CDIIDCommand':
-        $return = TRUE;
+      case 'CDILabelCommand':
+      case 'CDIListCommand':
+      case 'CDISimpleListCommand':
+      case 'CDICanonUrlCommand':
+        return TRUE;
+      // Provided by the entity module.
       case 'CDISaveCommand':
-        $return = $this->checkSupportCallback('entity', 'entity_type_supports', 'save');
+        return $this->entityModuleSupport('save');
       case 'CDIDeleteCommand':
-        $return = $this->checkSupportCallback('entity', 'entity_type_supports', 'delete');
+        return $this->entityModuleSupport('delete');
       case 'CDIDisplayCommand':
-        $return = $this->checkSupportCallback('entity', 'entity_type_supports', 'view');
+        return $this->entityModuleSupport('view');
       case 'CDIStubCommand':
-        $return = $this->checkSupportCallback('entity', 'entity_type_supports', 'create');
-        $requireBundle = TRUE;
-      case 'CDIExportCommand':
-      case 'CDIImportCommand':
-       $return = $this->checkSupportCallback('xentity', 'xentity_type_supports', 'exim');
+        return $this->entityModuleSupport('create')
+          & ($this->hasBundle() !== FALSE);
     }
-    if ($return && $requireBundle) {
-      $key = $this->getBundleKey();
-      if (!empty($key)) {
-        $return = !empty($this->bundle);
+    return FALSE;
+  }
+  
+  public function url(CDIDataObjectInterface $dataObject) {
+    return entity_uri($this->entity_type, $dataObject->getRawValue('object'));
+  }
+  
+  public function listSimpleItems($size = NULL, $page = NULL) {
+    $efq = $this->buildGenericQuery($size, $page);
+    $rs = $efq->execute();
+    $results = array();
+    foreach ($rs[$this->entity_type] as $stub) {
+      list($id,,) = entity_extract_ids(
+        $this->entity_type,
+        $stub
+      );
+      $entity = entity_load($this->entity_type, $id);
+      $results[$id] = entity_label($this->entity_type, $entity);
+    }
+    return $results;
+  }
+  
+  public function listItems($size = NULL, $page = NULL) {
+    $efq = $this->buildGenericQuery($size, $page);
+    $rs = $efq->execute();
+    $results = array();
+    foreach ($rs[$this->entity_type] as $stub) {
+      list($id,,) = entity_extract_ids(
+        $this->entity_type,
+        $stub
+      );
+      $results[$id] = $this->load($id);
+    }
+    return $results;
+  }
+  
+  private function buildGenericQuery($size = NULL, $page = NULL) {
+    $efq = new EntityFieldQuery();
+    $efq->entityCondition('entity_type', $this->entity_type);
+    if (!empty($this->bundle)) {
+      $efq->entityCondition('bundle', $this->bundle);
+    }
+    if (!empty($size)) {
+      $length = (int) $size;
+      $start = 0;
+      if (!empty($page)) {
+        $start += $page * $length;
       }
+      $efq->range($start, $length);
     }
-    return $return;
+    return $efq;
   }
-  
-  private function checkSupportCallback($module, $function, $op = NULL) {
-    if (!module_exists($module)) {
-      return FALSE;
-    }
-    if (!is_callable($function)) {
-      return FALSE;
-    }
-    return $function($this->entity_type, $op);
+    
+  public function label(CDIDataObject $dataObject) {
+    return entity_label($this->entity_type, $dataObject->getRawValue('object'));
   }
-  
-  public function import($export_data) {
-    return xentity_import($this->entity_type, $export_data);
-  }
-  
-  public function export(CDIDataObject $dataObject) {
-    return xentity_export($this->entity_type, $dataObject->getRawValue('object'));
-  }
-  
+    
   public function stub($initialValues = array()) {
     $bkey = $this->getBundleKey();
     if (!empty($bkey)) {
@@ -101,19 +113,21 @@ class CDIEntityReceiver extends CDIAbstractTypedReceiver
     return $cdi;
   }
   
-  public function supportsDisplayMode($mode) {
-    return in_array($mode, self::$supportedDisplayModes);
+  public function supportsDisplayConfiguration($type, $mode) {
+    return in_array($mode, self::$supportedDisplayModes) &&
+      in_array($type, self::$supportedDisplayTypes);
   }
   
-  public function display(CDIDataObjectInterface $object, $mode) {
+  public function display(CDIDataObjectInterface $object, $type, $mode) {
+    $view_mode = 'full';
     switch ($mode) {
-      case CDI_DISPLAY_HTML:
-        $entity = $object->getRawValue('object');
-        $render = entity_view($this->entity_type, array($entity));
-        return drupal_render($render);
+      case CDI_DISPLAY_MODE_SUMMARY:
+        $view_mode = 'teaser';
         break;
     }
-    return '';
+    $entity = $object->getRawValue('object');
+    $render = entity_view($this->entity_type, array($entity), $view_mode);
+    return drupal_render($render);
   }
   
   public function save(CDIDataObjectInterface $object) {
